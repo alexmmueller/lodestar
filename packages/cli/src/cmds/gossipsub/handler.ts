@@ -1,3 +1,4 @@
+import path from "path";
 import {createFromProtobuf, createSecp256k1PeerId} from "@libp2p/peer-id-factory";
 import {Multiaddr} from "@multiformats/multiaddr";
 import {Connection} from "@libp2p/interface-connection";
@@ -6,10 +7,11 @@ import {BitArray, fromHexString} from "@chainsafe/ssz";
 import {createNodeJsLibp2p, RegistryMetricCreator} from "@lodestar/beacon-node";
 import {BareGossipsub} from "@lodestar/beacon-node/network";
 import {ILogger, sleep} from "@lodestar/utils";
-import path from "path";
 import {phase0, ssz} from "@lodestar/types";
 import {computeEpochAtSlot} from "@lodestar/state-transition";
 import {ATTESTATION_SUBNET_COUNT} from "@lodestar/params";
+import {HttpMetricsServer} from "@lodestar/beacon-node";
+import {defaultMetricsOptions} from "@lodestar/beacon-node/metrics";
 import {getBeaconConfigFromArgs} from "../../config/beaconParams.js";
 import {IGlobalArgs} from "../../options/index.js";
 import {getCliLogger} from "../../util/index.js";
@@ -86,7 +88,7 @@ export async function gossipsubHandler(args: IGossipSubArgs & IGlobalArgs): Prom
     );
     logger.info("Initialized libp2p", {receiver, nodeIndex});
 
-    const metricRegister = new RegistryMetricCreator();
+    const metricRegister = receiver ? new RegistryMetricCreator() : undefined;
     const gossip = new BareGossipsub({logger, metricRegister}, {metricsTopicStrToLabel});
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
@@ -107,7 +109,16 @@ export async function gossipsubHandler(args: IGossipSubArgs & IGlobalArgs): Prom
       logger.info("Peer connected", {peerId: peer.toString(), nodeIndex});
     });
 
-    if (!receiver) {
+    if (receiver && metricRegister) {
+      // start metrics http server
+      const metricsServer = new HttpMetricsServer(defaultMetricsOptions, {
+        register: metricRegister,
+        logger: logger.child({module: "metrics"}),
+      });
+      await metricsServer.start();
+
+      logger.info("Started http metric server");
+    } else {
       promises.push(dialAndSend(libp2p, gossip, logger, receiverPeerId, nodeIndex));
     }
   } // end for
@@ -120,7 +131,7 @@ async function dialAndSend(
   gossip: BareGossipsub,
   logger: ILogger,
   receiverPeerId: Awaited<ReturnType<typeof createFromProtobuf>>,
-  nodeIndex: number,
+  nodeIndex: number
 ): Promise<void> {
   // same to connectToPeer
   await libp2p.peerStore.addressBook.add(receiverPeerId, [new Multiaddr(receiverMultiAddrStr)]);

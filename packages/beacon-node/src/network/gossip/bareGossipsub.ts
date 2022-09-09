@@ -17,7 +17,7 @@ const GOSSIPSUB_HEARTBEAT_INTERVAL = 0.7 * 1000;
 const MAX_OUTBOUND_BUFFER_SIZE = 2 ** 24; // 16MB
 
 export type Eth2GossipsubModules = {
-  metricRegister: RegistryMetricCreator;
+  metricRegister?: RegistryMetricCreator;
   logger: ILogger;
 };
 
