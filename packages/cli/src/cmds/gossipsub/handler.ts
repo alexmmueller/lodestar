@@ -1,26 +1,32 @@
 import {createFromProtobuf, createSecp256k1PeerId} from "@libp2p/peer-id-factory";
 import {Multiaddr} from "@multiformats/multiaddr";
 import {Connection} from "@libp2p/interface-connection";
-import {BitArray, fromHexString, toHexString} from "@chainsafe/ssz";
+import {Libp2p} from "libp2p";
+import {BitArray, fromHexString} from "@chainsafe/ssz";
 import {createNodeJsLibp2p, RegistryMetricCreator} from "@lodestar/beacon-node";
 import {BareGossipsub} from "@lodestar/beacon-node/network";
 import {ILogger, sleep} from "@lodestar/utils";
+import path from "path";
+import {phase0, ssz} from "@lodestar/types";
+import {computeEpochAtSlot} from "@lodestar/state-transition";
+import {ATTESTATION_SUBNET_COUNT} from "@lodestar/params";
 import {getBeaconConfigFromArgs} from "../../config/beaconParams.js";
 import {IGlobalArgs} from "../../options/index.js";
 import {getCliLogger} from "../../util/index.js";
 import {getBeaconPaths} from "../beacon/paths.js";
 import {IGossipSubArgs} from "./options.js";
-import { phase0, ssz } from "@lodestar/types";
-import { computeEpochAtSlot } from "@lodestar/state-transition";
-import { gossipsub } from "./index.js";
-import { ATTESTATION_SUBNET_COUNT } from "@lodestar/params";
 
 const topic = "beacon-attestation";
 const metricsTopicStrToLabel = new Map([[topic, topic]]);
 const receiverPeerIdHex =
   "0x0a270025080212210201c61201644b110fc63b5db207ab4918674c6e92d1a5f06e97c5abd5444542961225080212210201c61201644b110fc63b5db207ab4918674c6e92d1a5f06e97c5abd5444542961a2408021220386e4f870e321735cb25d738b5739033fb565f803ceb6a6795a0f638fed83e12";
 const receiverMultiAddrStr = "/ip4/0.0.0.0/tcp/10000";
-const senderMultiAddrStr = "/ip4/0.0.0.0/tcp/10001";
+const senderMultiAddrTemplate = "/ip4/0.0.0.0/tcp/1000";
+
+function getSenderMultiAddrStr(i: number): string {
+  return senderMultiAddrTemplate + (i + 1);
+}
+
 const seedAttestation: phase0.Attestation = {
   aggregationBits: BitArray.fromBoolArray(Array.from({length: 180}, () => false)),
   data: {
@@ -36,7 +42,9 @@ const seedAttestation: phase0.Attestation = {
       root: fromHexString("0x467997e91dec5b8f4b2cc4e67d82a761cfddecbcb6a3b1abc5d46646203b2512"),
     },
   },
-  signature: fromHexString("0xa0a09d4d138a959fc3513289feefb2e65c4339fe7a505d8ba794b48eb1bc6f359e6a3e7643a4a5717ec5c64e32b6666d02d69b5cff4487d2fc76e67dedb79ebf0500e2c844d8ceff5c29d2d1c73c7e61fb369075a09abdaece4a2657846a500a"),
+  signature: fromHexString(
+    "0xa0a09d4d138a959fc3513289feefb2e65c4339fe7a505d8ba794b48eb1bc6f359e6a3e7643a4a5717ec5c64e32b6666d02d69b5cff4487d2fc76e67dedb79ebf0500e2c844d8ceff5c29d2d1c73c7e61fb369075a09abdaece4a2657846a500a"
+  ),
 };
 
 /**
@@ -58,57 +66,75 @@ export async function gossipsubHandler(args: IGossipSubArgs & IGlobalArgs): Prom
   const {receiver} = args;
   const receiverPeerId = await createFromProtobuf(fromHexString(receiverPeerIdHex));
 
-  const peerId = receiver ? receiverPeerId : await createSecp256k1PeerId();
-  // console.log("peerId protobuf", toHexString(exportToProtobuf(peerId)));
-  const libp2p = await createNodeJsLibp2p(
-    peerId,
-    {
-      localMultiaddrs: receiver ? [receiverMultiAddrStr] : [senderMultiAddrStr],
-    },
-    {
-      peerStoreDir: beaconPaths.peerStoreDir,
-      metrics: false,
+  const numNode = receiver ? 1 : duplicateFactor;
+
+  const promises: Promise<void>[] = [];
+
+  for (let nodeIndex = 0; nodeIndex < numNode; nodeIndex++) {
+    const peerId = receiver ? receiverPeerId : await createSecp256k1PeerId();
+    // console.log("peerId protobuf", toHexString(exportToProtobuf(peerId)));
+
+    const libp2p = await createNodeJsLibp2p(
+      peerId,
+      {
+        localMultiaddrs: receiver ? [receiverMultiAddrStr] : [getSenderMultiAddrStr(nodeIndex)],
+      },
+      {
+        peerStoreDir: path.join(beaconPaths.peerStoreDir, String(nodeIndex)),
+        metrics: false,
+      }
+    );
+    logger.info("Initialized libp2p", {receiver, nodeIndex});
+
+    const metricRegister = new RegistryMetricCreator();
+    const gossip = new BareGossipsub({logger, metricRegister}, {metricsTopicStrToLabel});
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+    void gossip.init((libp2p as any).components).catch((e) => logger.error(e));
+
+    logger.info("Initialized gossipsub", {receiver, nodeIndex});
+
+    await libp2p.start();
+    await gossip.start();
+
+    logger.info("Started libp2p and gossipsub", {receiver, nodeIndex});
+    gossip.subscribe(topic);
+    logger.info("Subscribed to topic", {topic, nodeIndex});
+
+    libp2p.connectionManager.addEventListener("peer:connect", (evt: CustomEvent<Connection>) => {
+      const libp2pConnection = evt.detail;
+      const peer = libp2pConnection.remotePeer;
+      logger.info("Peer connected", {peerId: peer.toString(), nodeIndex});
+    });
+
+    if (!receiver) {
+      promises.push(dialAndSend(libp2p, gossip, logger, receiverPeerId, nodeIndex));
     }
-  );
+  } // end for
 
-  logger.info("Initialized libp2p", {listener: receiver});
-
-  const metricRegister = new RegistryMetricCreator();
-  const gossip = new BareGossipsub({logger, metricRegister}, {metricsTopicStrToLabel});
-
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
-  void gossip.init((libp2p as any).components).catch((e) => logger.error(e));
-
-  logger.info("Initialized gossipsub", {receiver});
-
-  await libp2p.start();
-  await gossip.start();
-
-  logger.info("Started libp2p and gossipsub", {receiver});
-  gossip.subscribe(topic);
-  logger.info("Subscribed to topic", {topic});
-
-  libp2p.connectionManager.addEventListener("peer:connect", (evt: CustomEvent<Connection>) => {
-    const libp2pConnection = evt.detail;
-    const peer = libp2pConnection.remotePeer;
-    logger.info("Peer connected", {peerId: peer.toString()});
-  });
-
-  if (!receiver) {
-    // same to connectToPeer
-    await libp2p.peerStore.addressBook.add(receiverPeerId, [new Multiaddr(senderMultiAddrStr)]);
-    await libp2p.dial(receiverPeerId);
-    await sendMessages(gossip, logger);
-  }
+  await Promise.all(promises);
 }
 
-async function sendMessages(gossip: BareGossipsub, logger: ILogger): Promise<void> {
+async function dialAndSend(
+  libp2p: Libp2p,
+  gossip: BareGossipsub,
+  logger: ILogger,
+  receiverPeerId: Awaited<ReturnType<typeof createFromProtobuf>>,
+  nodeIndex: number,
+): Promise<void> {
+  // same to connectToPeer
+  await libp2p.peerStore.addressBook.add(receiverPeerId, [new Multiaddr(receiverMultiAddrStr)]);
+  await libp2p.dial(receiverPeerId);
+  await sendMessages(gossip, logger, nodeIndex);
+}
+
+async function sendMessages(gossip: BareGossipsub, logger: ILogger, nodeIndex: number): Promise<void> {
   while (gossip.peers.size <= 0) {
-    logger.info("No peer, retry in 5s");
+    logger.info("No peer, retry in 5s", {nodeIndex});
     await sleep(5 * 1000);
   }
   const [peer] = gossip.peers;
-  logger.info("Found peers", {peer, numPeer: gossip.peers.size});
+  logger.info("Found peers", {peer, numPeer: gossip.peers.size, nodeIndex});
 
   let slot = startSlot;
   // send to receiver per 100ms
@@ -119,7 +145,6 @@ async function sendMessages(gossip: BareGossipsub, logger: ILogger): Promise<voi
     await sleep(1000 / timesPerSec);
     const epoch = computeEpochAtSlot(slot);
 
-    const promises: Promise<unknown>[] = [];
     for (let i = 0; i < messagesPerSecond / timesPerSec; i++) {
       const attestation: phase0.Attestation = {
         ...seedAttestation,
@@ -132,10 +157,14 @@ async function sendMessages(gossip: BareGossipsub, logger: ILogger): Promise<voi
       const bytes = ssz.phase0.Attestation.serialize(attestation);
       // make sure it's unique
       bytes[bytes.length - 1] = i;
-      // cannot send duplicate messages from same gossipsub
-      promises.push(gossip.publish(topic, bytes));
+      try {
+        await gossip.publish(topic, bytes);
+      } catch (e) {
+        // messages are unique per gossip but
+        // could have duplicate error here due to IWANT/IHAVE
+        // this is fine as long as the metrics of receiver shows good result
+      }
     }
-    await Promise.all(promises);
 
     slot++;
   }

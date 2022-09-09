@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {GossipSub, GossipsubEvents} from "@chainsafe/libp2p-gossipsub";
-import {SignaturePolicy} from "@chainsafe/libp2p-gossipsub/types";
+import {MessageAcceptance, SignaturePolicy} from "@chainsafe/libp2p-gossipsub/types";
 import {MetricsRegister} from "@chainsafe/libp2p-gossipsub/metrics";
 import {ILogger} from "@lodestar/utils";
 
@@ -69,11 +69,13 @@ export class BareGossipsub extends GossipSub {
   }
 
   private onGossipsubMessage(event: GossipsubEvents["gossipsub:message"]): void {
-    const {propagationSource, msgId, msg} = event.detail;
-    this.logger.info("onGossipsubMessage", {
-      propagationSource: propagationSource.toString(),
-      msgId,
-      msg: msg.data.length,
-    });
+    const {propagationSource, msgId} = event.detail;
+    // just for debug
+    // this.logger.info("onGossipsubMessage", {
+    //   propagationSource: propagationSource.toString(),
+    //   msgId,
+    //   msg: msg.data.length,
+    // });
+    this.reportMessageValidationResult(msgId, propagationSource, MessageAcceptance.Accept);
   }
 }
