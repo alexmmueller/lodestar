@@ -11,7 +11,7 @@ import {phase0, ssz} from "@lodestar/types";
 import {computeEpochAtSlot} from "@lodestar/state-transition";
 import {ATTESTATION_SUBNET_COUNT} from "@lodestar/params";
 import {HttpMetricsServer} from "@lodestar/beacon-node";
-import {defaultMetricsOptions} from "@lodestar/beacon-node/metrics";
+import {collectNodeJSMetrics, defaultMetricsOptions} from "@lodestar/beacon-node/metrics";
 import {getBeaconConfigFromArgs} from "../../config/beaconParams.js";
 import {IGlobalArgs} from "../../options/index.js";
 import {getCliLogger} from "../../util/index.js";
@@ -110,6 +110,8 @@ export async function gossipsubHandler(args: IGossipSubArgs & IGlobalArgs): Prom
     });
 
     if (receiver && metricRegister) {
+      collectNodeJSMetrics(metricRegister);
+
       // start metrics http server
       const metricsServer = new HttpMetricsServer(defaultMetricsOptions, {
         register: metricRegister,
