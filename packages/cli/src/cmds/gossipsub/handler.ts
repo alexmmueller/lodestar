@@ -9,7 +9,6 @@ import {BareGossipsub} from "@lodestar/beacon-node/network";
 import {ILogger, sleep} from "@lodestar/utils";
 import {phase0, ssz} from "@lodestar/types";
 import {computeEpochAtSlot} from "@lodestar/state-transition";
-import {ATTESTATION_SUBNET_COUNT} from "@lodestar/params";
 import {HttpMetricsServer} from "@lodestar/beacon-node";
 import {collectNodeJSMetrics, defaultMetricsOptions} from "@lodestar/beacon-node/metrics";
 import {getBeaconConfigFromArgs} from "../../config/beaconParams.js";
@@ -57,7 +56,7 @@ const seedAttestation: phase0.Attestation = {
  */
 const messagesPerSecond = 2500;
 
-const numSenders = 50;
+const numSenders = 25;
 
 // goerli on Sep 02 2022 at around 08:00am UTC
 const startSlot = 3849723;
