@@ -29,8 +29,10 @@ function getSenderMultiAddrStr(i: number): string {
   return senderMultiAddrTemplate + (i + 1);
 }
 
+const committeeSize = 200;
+
 const seedAttestation: phase0.Attestation = {
-  aggregationBits: BitArray.fromBoolArray(Array.from({length: 180}, () => false)),
+  aggregationBits: BitArray.fromBoolArray(Array.from({length: committeeSize}, () => false)),
   data: {
     slot: 3849723,
     index: 51,
@@ -50,12 +52,12 @@ const seedAttestation: phase0.Attestation = {
 };
 
 /**
- * A 1-validator node receives 100 attestations per second, 30% of that are accepted.
- * Make it 4x
+ * Assuming there are 500000 validators, per slot = 15625 messages
+ * per subnet = per slot / 64 ~= 2441, make it 2500
  */
-const messagesPerSecond = 30 * 4;
+const messagesPerSecond = 2500;
 
-const duplicateFactor = 4;
+const numSenders = 50;
 
 // goerli on Sep 02 2022 at around 08:00am UTC
 const startSlot = 3849723;
@@ -68,7 +70,7 @@ export async function gossipsubHandler(args: IGossipSubArgs & IGlobalArgs): Prom
   const {receiver} = args;
   const receiverPeerId = await createFromProtobuf(fromHexString(receiverPeerIdHex));
 
-  const numNode = receiver ? 1 : duplicateFactor;
+  const numNode = receiver ? 1 : numSenders;
 
   const promises: Promise<void>[] = [];
 
@@ -157,13 +159,18 @@ async function sendMessages(gossip: BareGossipsub, logger: ILogger, nodeIndex: n
     // 1 / 10 of 1 second
     await sleep(1000 / timesPerSec);
     const epoch = computeEpochAtSlot(slot);
+    // each sender sends different set of messages, then it'll gossip to each other
+    // including the receiver
+    const messagesPerSender = Math.floor(messagesPerSecond / timesPerSec / numSenders);
 
-    for (let i = 0; i < messagesPerSecond / timesPerSec; i++) {
+    for (let i = nodeIndex * messagesPerSender; i < nodeIndex * messagesPerSender + messagesPerSender; i++) {
       const attestation: phase0.Attestation = {
         ...seedAttestation,
       };
+      attestation.aggregationBits.set(i % committeeSize, true);
       attestation.data.slot = slot;
-      attestation.data.index = i % ATTESTATION_SUBNET_COUNT;
+      // as in goerli there are 64 committees per slot
+      attestation.data.index = nodeIndex;
       attestation.data.source.epoch = epoch - 1;
       attestation.data.target.epoch = epoch;
 
