@@ -53,7 +53,7 @@ export class BareGossipsub extends GossipSub {
       // a chunk bigger than GOSSIP_MAX_SIZE pre merge even on mainnet network.
       //
       // TODO: figure out a way to dynamically transition to the size
-      dataTransform: new DataTransformSnappy(GOSSIP_MAX_SIZE),
+      dataTransform: undefined,
       metricsRegister: (metricRegister as unknown) as MetricsRegister,
       metricsTopicStrToLabel: opts.metricsTopicStrToLabel,
       asyncValidation: true,
