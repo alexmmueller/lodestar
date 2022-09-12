@@ -19,13 +19,28 @@ import {IGossipSubArgs} from "./options.js";
 
 const topic = "beacon-attestation";
 const metricsTopicStrToLabel = new Map([[topic, topic]]);
-const receiverPeerIdHex =
-  "0x0a270025080212210201c61201644b110fc63b5db207ab4918674c6e92d1a5f06e97c5abd5444542961225080212210201c61201644b110fc63b5db207ab4918674c6e92d1a5f06e97c5abd5444542961a2408021220386e4f870e321735cb25d738b5739033fb565f803ceb6a6795a0f638fed83e12";
-const receiverMultiAddrStr = "/ip4/0.0.0.0/tcp/10000";
-const senderMultiAddrTemplate = "/ip4/0.0.0.0/tcp/1000";
+const receiverPeerIdHexes = [
+  "0x0a27002508021221030c511d117134b5a4d64715049fb92b3f6a1ced53fec11e55e3f8cde0ac438ca7122508021221030c511d117134b5a4d64715049fb92b3f6a1ced53fec11e55e3f8cde0ac438ca71a2408021220718a5440e10882bdad489822036b3e034faa7c8b42555901d6654ef18c466e0b",
+  "0x0a27002508021221026270da62887090205d91328034efe39b97f629bd7d861e7f914f00781a4b518b122508021221026270da62887090205d91328034efe39b97f629bd7d861e7f914f00781a4b518b1a2408021220bc5559437e11e8b5c4ca170da5f78910bf3ffb7dba90c575f6590b9c27e87313",
+  "0x0a27002508021221034eb4fbf6f7779b5dbcdb3aeed8d2ddce830f5c67e79a7eb6015590c2648f151f122508021221034eb4fbf6f7779b5dbcdb3aeed8d2ddce830f5c67e79a7eb6015590c2648f151f1a24080212200f373937d9ab5eb71a2b8d9c33447a45fc2e180b047c85dbde8ecf6b05783dd1",
+  "0x0a27002508021221033212bc65669c4c9c78b1a744cb719c5a711b22d350176b2bff698fc2113c46d8122508021221033212bc65669c4c9c78b1a744cb719c5a711b22d350176b2bff698fc2113c46d81a24080212206cb0b9e8f366068474c6f418efc9a3cdde830304ca6ee438f96a28051c1e280b",
+  "0x0a2700250802122102c9cfc70b1ba27d4953420c088fb20cec0b5974cea1429d3d42863c36c4ac9e5912250802122102c9cfc70b1ba27d4953420c088fb20cec0b5974cea1429d3d42863c36c4ac9e591a24080212207f530381b46828bbe145e25ec022a32ba37b06590f4bedea33601f9d3fe576fc",
+  "0x0a2700250802122103f507b945567edf8c8023cf22df425bd64e963a9b0cf804e32532e6d60e3ad85212250802122103f507b945567edf8c8023cf22df425bd64e963a9b0cf804e32532e6d60e3ad8521a2408021220dff4835b2c8be3c1278838bdaf01672d026146a9e8e80f5c55433482420e38da",
+  "0x0a270025080212210252e2fd2bf3ef3ff69ead49f9cc09a59ea3640b1d8730a4cf1d200f730137204a1225080212210252e2fd2bf3ef3ff69ead49f9cc09a59ea3640b1d8730a4cf1d200f730137204a1a24080212206815d08d9d8a66c5d90826b1ddcddc30bcb61213785f545bc6911bce3dca7e73",
+  "0x0a2700250802122103cbf3ab00b41c96b20737b49e6c73897bdf66476ccd0f44651bb91b0e974cbb1612250802122103cbf3ab00b41c96b20737b49e6c73897bdf66476ccd0f44651bb91b0e974cbb161a24080212205bec39cebdcffc92780f2609ffd4eca57b9c28b0c1f986ee6682cf4cdce6f5c4",
+  "0x0a27002508021221035a3e59b3bd40f2424b102df9c5d2a0b14f4072268100fcfb1ea8beff73ad8d64122508021221035a3e59b3bd40f2424b102df9c5d2a0b14f4072268100fcfb1ea8beff73ad8d641a2408021220677b34cff5b91733255fdd42245175f88cbbb7edc4ea1297bbc956dc91d9819f",
+  "0x0a27002508021221028f44117705f60ced91257888e4933298eb2f538f639bc8469a8f4433b1e737cf122508021221028f44117705f60ced91257888e4933298eb2f538f639bc8469a8f4433b1e737cf1a240802122008757514ab96dc36b037220551079105f466eb680456ea409f9223863be21885",
+  "0x0a27002508021221020781a7820c7c8a8a6b4d5b446a6084726e9330dab0693115bd81179673672bb7122508021221020781a7820c7c8a8a6b4d5b446a6084726e9330dab0693115bd81179673672bb71a24080212205ade693ff7ce7fe3d99c64585b29127468bac9cd6e5897c4b5c129bdc9440a0d",
+  "0x0a27002508021221020bf4ec1e6df49577172ac33c1b06206be3f5bff7c74543123967222f2d2d3fdd122508021221020bf4ec1e6df49577172ac33c1b06206be3f5bff7c74543123967222f2d2d3fdd1a24080212201603148a44273d15e652e895ea12c5b1794da02da818caa1f57befcb5fec3526",
+  "0x0a270025080212210240c520e535164f8e4d0758c8b66fdb96f9d44b6c8a86d698783c347a9d690f3d1225080212210240c520e535164f8e4d0758c8b66fdb96f9d44b6c8a86d698783c347a9d690f3d1a240802122076188a9f4dbebc449f06b477954797257e11025d76c491c635090ee85d224f32",
+  "0x0a2700250802122102f2cbeb78c8a4e3918eb14f5f0337e56a45af6b247343854081c553b953595a8412250802122102f2cbeb78c8a4e3918eb14f5f0337e56a45af6b247343854081c553b953595a841a2408021220fef1676e1529f3756031f9cf7b05043ccf065c4470012554287aa092acacc289",
+  "0x0a27002508021221034cc4e355279839853edc5ffd5b8b3fef0e08380b230d37b11243589bc0704575122508021221034cc4e355279839853edc5ffd5b8b3fef0e08380b230d37b11243589bc07045751a2408021220b7788635930507080b628e78d141c8461a25acdac0632e02cde6b51fe8d719db",
+];
+const receiverMultiAddrStrTemplate = "/ip4/0.0.0.0/tcp/100";
+const senderMultiAddr = "/ip4/0.0.0.0/tcp/9999";
 
-function getSenderMultiAddrStr(i: number): string {
-  return senderMultiAddrTemplate + (i + 1);
+function getReceiverMultiAddrStr(i: number): string {
+  return receiverMultiAddrStrTemplate + (i < 10 ? "0" + i : i);
 }
 
 const committeeSize = 200;
@@ -56,7 +71,8 @@ const seedAttestation: phase0.Attestation = {
  */
 const messagesPerSecond = 2500;
 
-const numSenders = 25;
+const numSenders = 1;
+const numReceivers = 15;
 
 // goerli on Sep 02 2022 at around 08:00am UTC
 const startSlot = 3849723;
@@ -67,20 +83,22 @@ export async function gossipsubHandler(args: IGossipSubArgs & IGlobalArgs): Prom
   const beaconPaths = getBeaconPaths(args, network);
   const logger = getCliLogger(args, beaconPaths, config);
   const {receiver} = args;
-  const receiverPeerId = await createFromProtobuf(fromHexString(receiverPeerIdHex));
+  const receiverPeerIds = await Promise.all(
+    receiverPeerIdHexes.map((receiverPeerIdHex) => createFromProtobuf(fromHexString(receiverPeerIdHex)))
+  );
 
-  const numNode = receiver ? 1 : numSenders;
+  const numNode = receiver ? numReceivers : numSenders;
 
   const promises: Promise<void>[] = [];
 
   for (let nodeIndex = 0; nodeIndex < numNode; nodeIndex++) {
-    const peerId = receiver ? receiverPeerId : await createSecp256k1PeerId();
+    const peerId = receiver ? receiverPeerIds[nodeIndex] : await createSecp256k1PeerId();
     // console.log("peerId protobuf", toHexString(exportToProtobuf(peerId)));
 
     const libp2p = await createNodeJsLibp2p(
       peerId,
       {
-        localMultiaddrs: receiver ? [receiverMultiAddrStr] : [getSenderMultiAddrStr(nodeIndex)],
+        localMultiaddrs: receiver ? [getReceiverMultiAddrStr(nodeIndex)] : [senderMultiAddr],
       },
       {
         peerStoreDir: path.join(beaconPaths.peerStoreDir, String(nodeIndex)),
@@ -89,7 +107,7 @@ export async function gossipsubHandler(args: IGossipSubArgs & IGlobalArgs): Prom
     );
     logger.info("Initialized libp2p", {receiver, nodeIndex});
 
-    const metricRegister = receiver ? new RegistryMetricCreator() : undefined;
+    const metricRegister = receiver ? undefined : new RegistryMetricCreator();
     const gossip = new BareGossipsub({logger, metricRegister}, {metricsTopicStrToLabel});
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
@@ -110,19 +128,16 @@ export async function gossipsubHandler(args: IGossipSubArgs & IGlobalArgs): Prom
       logger.info("Peer connected", {peerId: peer.toString(), nodeIndex});
     });
 
-    if (receiver && metricRegister) {
+    if (!receiver && metricRegister) {
       collectNodeJSMetrics(metricRegister);
-
       // start metrics http server
       const metricsServer = new HttpMetricsServer(defaultMetricsOptions, {
         register: metricRegister,
         logger: logger.child({module: "metrics"}),
       });
       await metricsServer.start();
-
       logger.info("Started http metric server");
-    } else {
-      promises.push(dialAndSend(libp2p, gossip, logger, receiverPeerId, nodeIndex));
+      promises.push(dialAndSend(libp2p, gossip, logger, receiverPeerIds, nodeIndex));
     }
   } // end for
 
@@ -133,20 +148,29 @@ async function dialAndSend(
   libp2p: Libp2p,
   gossip: BareGossipsub,
   logger: ILogger,
-  receiverPeerId: Awaited<ReturnType<typeof createFromProtobuf>>,
+  receiverPeerIds: Awaited<ReturnType<typeof createFromProtobuf>>[],
   nodeIndex: number
 ): Promise<void> {
   // same to connectToPeer
-  await libp2p.peerStore.addressBook.add(receiverPeerId, [new Multiaddr(receiverMultiAddrStr)]);
-  await libp2p.dial(receiverPeerId);
-  await sendMessages(gossip, logger, nodeIndex);
+  for (const [i, receiverPeerId] of receiverPeerIds.entries()) {
+    logger.info("Dialing receiver", {i})
+    await libp2p.peerStore.addressBook.add(receiverPeerId, [new Multiaddr(getReceiverMultiAddrStr(i))]);
+    await libp2p.dial(receiverPeerId);
+  }
+  await sendMessages(gossip, logger, nodeIndex, receiverPeerIds.length);
 }
 
-async function sendMessages(gossip: BareGossipsub, logger: ILogger, nodeIndex: number): Promise<void> {
-  while (gossip.peers.size <= 0) {
-    logger.info("No peer, retry in 5s", {nodeIndex});
+async function sendMessages(
+  gossip: BareGossipsub,
+  logger: ILogger,
+  nodeIndex: number,
+  expectedPeers: number
+): Promise<void> {
+  while (gossip.peers.size < expectedPeers) {
+    logger.info("Not enough peers, retry in 5s", {nodeIndex, peers: gossip.peers.size, expectedPeers});
     await sleep(5 * 1000);
   }
+  logger.info("Found enough peers", {nodeIndex, peers: gossip.peers.size});
   const [peer] = gossip.peers;
   logger.info("Found peers", {peer, numPeer: gossip.peers.size, nodeIndex});
 
