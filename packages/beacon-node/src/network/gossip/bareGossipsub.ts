@@ -6,7 +6,7 @@ import {ILogger} from "@lodestar/utils";
 
 import {RegistryMetricCreator} from "../../metrics/index.js";
 import {GOSSIP_MAX_SIZE} from "../../constants/network.js";
-import {DataTransformSnappy, fastMsgIdFn, simpleMsgIdFn} from "./encoding.js";
+import {DataTransformSnappy, fastMsgIdFn, msgIdToStrFn, simpleMsgIdFn} from "./encoding.js";
 
 import {gossipScoreThresholds, GOSSIP_D, GOSSIP_D_HIGH, GOSSIP_D_LOW} from "./scoringParameters.js";
 
@@ -47,6 +47,7 @@ export class BareGossipsub extends GossipSub {
       gossipsubIWantFollowupMs: 12 * 1000, // 12s
       fastMsgIdFn: fastMsgIdFn,
       msgIdFn: simpleMsgIdFn,
+      msgIdToStrFn: msgIdToStrFn,
       // Use the bellatrix max size if the merge is configured. pre-merge using this size
       // could only be an issue on outgoing payloads, its highly unlikely we will send out
       // a chunk bigger than GOSSIP_MAX_SIZE pre merge even on mainnet network.
