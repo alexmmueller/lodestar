@@ -1,10 +1,12 @@
 import path from "node:path";
 import {Registry} from "prom-client";
-import {createSecp256k1PeerId} from "@libp2p/peer-id-factory";
+import {createFromProtobuf, createSecp256k1PeerId} from "@libp2p/peer-id-factory";
+import {Multiaddr} from "@multiformats/multiaddr";
 import {createKeypairFromPeerId, ENR} from "@chainsafe/discv5";
 import {ErrorAborted} from "@lodestar/utils";
 import {LevelDbController} from "@lodestar/db";
-import {BeaconNode, BeaconDb, createNodeJsLibp2p} from "@lodestar/beacon-node";
+import {BeaconNode, BeaconDb, createNodeJsLibp2p, defaultOptions} from "@lodestar/beacon-node";
+import {fromHexString} from "@chainsafe/ssz";
 import {createIBeaconConfig} from "@lodestar/config";
 import {ACTIVE_PRESET, PresetName} from "@lodestar/params";
 import {ProcessShutdownCallback} from "@lodestar/validator";
@@ -18,11 +20,17 @@ import {IBeaconArgs} from "./options.js";
 import {getBeaconPaths} from "./paths.js";
 import {initBeaconState} from "./initBeaconState.js";
 
+const receiverPeerHex =
+  "0x0a27002508021221030c511d117134b5a4d64715049fb92b3f6a1ced53fec11e55e3f8cde0ac438ca7122508021221030c511d117134b5a4d64715049fb92b3f6a1ced53fec11e55e3f8cde0ac438ca71a2408021220718a5440e10882bdad489822036b3e034faa7c8b42555901d6654ef18c466e0b";
+
 /**
  * Runs a beacon node.
  */
 export async function beaconHandler(args: IBeaconArgs & IGlobalArgs): Promise<void> {
-  const {config, options, beaconPaths, network, version, commit, peerId} = await beaconHandlerInit(args);
+  const {config, options, beaconPaths, network, version, commit, peerId: dynamicPeerId} = await beaconHandlerInit(args);
+
+  const receiverPeerId = await createFromProtobuf(fromHexString(receiverPeerHex));
+  const peerId = args.receiver ? receiverPeerId : dynamicPeerId;
 
   // initialize directories
   mkdir(beaconPaths.dataDir);
@@ -66,20 +74,45 @@ export async function beaconHandler(args: IBeaconArgs & IGlobalArgs): Promise<vo
       abortController.signal
     );
     const beaconConfig = createIBeaconConfig(config, anchorState.genesisValidatorsRoot);
+    const libp2p = await createNodeJsLibp2p(peerId, options.network, {
+      peerStoreDir: beaconPaths.peerStoreDir,
+      metrics: options.metrics.enabled,
+    });
     const node = await BeaconNode.init({
       opts: options,
       config: beaconConfig,
       db,
       logger,
       processShutdownCallback,
-      libp2p: await createNodeJsLibp2p(peerId, options.network, {
-        peerStoreDir: beaconPaths.peerStoreDir,
-        metrics: options.metrics.enabled,
-      }),
+      libp2p,
       anchorState,
       wsCheckpoint,
       metricsRegistries,
     });
+
+    if (args.receiver) {
+      logger.info("Started node as receiver mode");
+    } else {
+      // sender dials to receiver
+      await node.network.connectToPeer(
+        receiverPeerId,
+        defaultOptions.network.localMultiaddrs.map((addrStr) => new Multiaddr(addrStr))
+      );
+
+      const remoteStatus = await node.network.reqResp.status(receiverPeerId, node.chain.getStatus());
+
+      logger.info("Started node as sender mode, found remote head", {slot: remoteStatus.headSlot});
+
+      let count = 0;
+      while (true) {
+        const blocks = await node.network.reqResp.beaconBlocksByRange(receiverPeerId, {
+          startSlot: remoteStatus.headSlot,
+          count: 1,
+          step: 1,
+        });
+        logger.info("Done query blocks", {blocks: blocks.length, count: count++});
+      }
+    }
 
     if (args.attachToGlobalThis) ((globalThis as unknown) as {bn: BeaconNode}).bn = node;
 

@@ -140,14 +140,15 @@ export class PeerManager {
     this.opts = opts;
 
     // opts.discv5 === null, discovery is disabled
-    this.discovery =
-      opts.discv5 &&
-      new PeerDiscovery(modules, {
-        maxPeers: opts.maxPeers,
-        discv5FirstQueryDelayMs: opts.discv5FirstQueryDelayMs,
-        discv5: opts.discv5,
-        connectToDiscv5Bootnodes: opts.connectToDiscv5Bootnodes,
-      });
+    // this.discovery =
+    //   opts.discv5 &&
+    //   new PeerDiscovery(modules, {
+    //     maxPeers: opts.maxPeers,
+    //     discv5FirstQueryDelayMs: opts.discv5FirstQueryDelayMs,
+    //     discv5: opts.discv5,
+    //     connectToDiscv5Bootnodes: opts.connectToDiscv5Bootnodes,
+    //   });
+    this.discovery = null;
 
     const {metrics} = modules;
     if (metrics) {

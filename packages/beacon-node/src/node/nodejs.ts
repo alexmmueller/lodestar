@@ -248,7 +248,7 @@ export class BeaconNode {
 
     await network.start();
 
-    void runNodeNotifier({network, chain, sync, config, logger, signal});
+    // void runNodeNotifier({network, chain, sync, config, logger, signal});
 
     return new this({
       opts,

@@ -94,10 +94,13 @@ export class InboundRateLimiter implements IRateLimiter {
     }
   }
 
+  allowRequest(peerId: PeerId, requestTyped: RequestTypedContainer): boolean {
+    return true;
+  }
   /**
    * Tracks a request from a peer and returns whether to allow the request based on the configured rate limit params.
    */
-  allowRequest(peerId: PeerId, requestTyped: RequestTypedContainer): boolean {
+  allowRequest2(peerId: PeerId, requestTyped: RequestTypedContainer): boolean {
     const peerIdStr = peerId.toString();
     this.lastSeenRequestsByPeer.set(peerIdStr, Date.now());
 

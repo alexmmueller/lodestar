@@ -139,7 +139,7 @@ export class Network implements INetwork {
 
     this.reqResp.start();
     this.metadata.start(this.getEnr(), this.config.getForkName(this.clock.currentSlot));
-    await this.peerManager.start();
+    // await this.peerManager.start();
     await this.gossip.start();
     this.attnetsService.start();
     this.syncnetsService.start();
@@ -153,7 +153,7 @@ export class Network implements INetwork {
   async stop(): Promise<void> {
     // Must goodbye and disconnect before stopping libp2p
     await this.peerManager.goodbyeAndDisconnectAllPeers();
-    await this.peerManager.stop();
+    // await this.peerManager.stop();
     await this.gossip.stop();
     this.reqResp.stop();
     this.attnetsService.stop();

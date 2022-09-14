@@ -117,7 +117,7 @@ export async function readErrorMessage(bufferedSource: BufferedSource): Promise<
     }
   }
 
-  const bytes = bufferedSource["buffer"].slice(0, 256);
+  const bytes = bufferedSource["buffer"].slice();
 
   try {
     return decodeErrorMessage(bytes);

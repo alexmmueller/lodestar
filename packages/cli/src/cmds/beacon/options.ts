@@ -12,6 +12,7 @@ interface IBeaconExtraArgs {
   checkpointSyncUrl?: string;
   checkpointState?: string;
   wssCheckpoint?: string;
+  receiver: boolean;
 }
 
 export const beaconExtraOptions: ICliCommandOptions<IBeaconExtraArgs> = {
@@ -57,6 +58,12 @@ export const beaconExtraOptions: ICliCommandOptions<IBeaconExtraArgs> = {
       "Start beacon node off a state at the provided weak subjectivity checkpoint, to be supplied in <blockRoot>:<epoch> format. For example, 0x1234:100 will sync and start off from the weakSubjectivity state at checkpoint of epoch 100 with block root 0x1234.",
     type: "string",
     group: "weak subjectivity",
+  },
+
+  receiver: {
+    description: "receiver mode or sender mode",
+    type: "boolean",
+    require: true,
   },
 };
 

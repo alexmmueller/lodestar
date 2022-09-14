@@ -1,5 +1,5 @@
 import {GENESIS_SLOT, MAX_REQUEST_BLOCKS} from "@lodestar/params";
-import {phase0, Slot} from "@lodestar/types";
+import {phase0, Slot, ssz} from "@lodestar/types";
 import {fromHexString} from "@chainsafe/ssz";
 import {IBeaconChain} from "../../../chain/index.js";
 import {IBeaconDb} from "../../../db/index.js";
@@ -73,7 +73,13 @@ export async function* injectRecentBlocks(
     }
   }
   if (totalBlock === 0) {
-    throw new ResponseError(RespStatus.RESOURCE_UNAVAILABLE, "No block found");
+    // throw new ResponseError(RespStatus.RESOURCE_UNAVAILABLE, "No block found");
+    // return some default blocks just for the test
+    for (let i = 0; i < request.count; i++) {
+      const block = ssz.bellatrix.SignedBeaconBlock.defaultValue();
+      block.message.slot = request.startSlot + i;
+      yield {bytes: ssz.bellatrix.SignedBeaconBlock.serialize(block), slot: block.message.slot};
+    }
   }
 }
 
