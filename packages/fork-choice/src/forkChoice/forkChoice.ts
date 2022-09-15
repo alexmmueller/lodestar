@@ -789,6 +789,10 @@ export class ForkChoice implements IForkChoice {
     // minus the shuffling lookahead (usually 2). We call this the "pivot".
     const pivotSlot = computeEndSlotAtEpoch(blockEpoch - MIN_SEED_LOOKAHEAD);
 
+    if (pivotSlot < 0) {
+      return toHexString(headBlockHash);
+    }
+
     // 1st hop: target block
     block = this.getBlockHex(block.targetRoot);
     if (!block) return null;

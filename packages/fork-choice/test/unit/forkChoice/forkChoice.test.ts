@@ -129,23 +129,72 @@ describe("Forkchoice", function () {
   });
 
   const dependentRootTestCases = [
-    {name: "no skipped lot", skippedSlots: [], pivotSlot: 31},
-    {name: "skipped pivot slot 31", skippedSlots: [31], pivotSlot: 30},
-    {name: "skipped pivot slot 31, 30", skippedSlots: [31, 30], pivotSlot: 29},
-    {name: "skipped slot 33 to 64", skippedSlots: Array.from({length: 32}, (_, i) => i + 33), pivotSlot: 31},
-    {name: "skipped slot 32 to 64", skippedSlots: Array.from({length: 33}, (_, i) => i + 32), pivotSlot: 31},
-    {name: "skipped slot 31 to 64", skippedSlots: Array.from({length: 34}, (_, i) => i + 31), pivotSlot: 30},
-    {name: "skipped slot 30 to 64", skippedSlots: Array.from({length: 35}, (_, i) => i + 30), pivotSlot: 29},
+    {name: "no skipped lot", skippedSlots: [], pivotSlot: 63, totalSlots: 69},
+    {name: "skipped pivot slot 63", skippedSlots: [63], pivotSlot: 62, totalSlots: 69},
+    {name: "skipped pivot slot 63, 62", skippedSlots: [63, 62], pivotSlot: 61, totalSlots: 69},
+    {
+      name: "skipped slot 33 to 64",
+      skippedSlots: Array.from({length: 32}, (_, i) => i + 33),
+      pivotSlot: 32,
+      totalSlots: 69,
+    },
+    {
+      name: "skipped slot 32 to 64",
+      skippedSlots: Array.from({length: 33}, (_, i) => i + 32),
+      pivotSlot: 31,
+      totalSlots: 69,
+    },
+    {
+      name: "skipped slot 31 to 64",
+      skippedSlots: Array.from({length: 34}, (_, i) => i + 31),
+      pivotSlot: 30,
+      totalSlots: 69,
+    },
+    {
+      name: "skipped slot 30 to 64",
+      skippedSlots: Array.from({length: 35}, (_, i) => i + 30),
+      pivotSlot: 29,
+      totalSlots: 69,
+    },
+    {
+      name: "total slots more than one epochs",
+      skippedSlots: [],
+      pivotSlot: 31,
+      totalSlots: 35,
+    },
+    {
+      name: "total slots one epochs. skipped slot 28",
+      skippedSlots: [28],
+      pivotSlot: 31,
+      totalSlots: 32,
+    },
+    {
+      name: "total slots one epochs. skipped slot 31",
+      skippedSlots: [31],
+      pivotSlot: 30,
+      totalSlots: 32,
+    },
+    {
+      name: "total slots one epochs. skipped slot 31, 30",
+      skippedSlots: [31, 30],
+      pivotSlot: 29,
+      totalSlots: 32,
+    },
+    {
+      name: "total slots one epochs. skipped slot 31, 30, 29, 28",
+      skippedSlots: [31, 30, 29, 28],
+      pivotSlot: 27,
+      totalSlots: 32,
+    },
   ];
 
-  for (const {name, skippedSlots, pivotSlot} of dependentRootTestCases) {
+  for (const {name, skippedSlots, pivotSlot, totalSlots} of dependentRootTestCases) {
     it(`findAttesterDependentRoot - ${name}`, () => {
-      const slot = 2 * 32 + 5;
-      populateProtoArray(slot, skippedSlots);
+      populateProtoArray(totalSlots, skippedSlots);
       const forkchoice = new ForkChoice(config, fcStore, protoArr);
-      const blockRoot = getBlockRoot(slot);
+      const headRoot = getBlockRoot(totalSlots);
       const pivotRoot = getBlockRoot(pivotSlot);
-      expect(forkchoice.findAttesterDependentRoot(fromHexString(blockRoot))).to.be.equal(
+      expect(forkchoice.findAttesterDependentRoot(fromHexString(headRoot))).to.be.equal(
         pivotRoot,
         "incorrect attester dependent root"
       );
