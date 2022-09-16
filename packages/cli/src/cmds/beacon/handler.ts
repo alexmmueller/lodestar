@@ -2,7 +2,7 @@ import path from "node:path";
 import {Registry} from "prom-client";
 import {createSecp256k1PeerId} from "@libp2p/peer-id-factory";
 import {createKeypairFromPeerId, ENR} from "@chainsafe/discv5";
-import {ErrorAborted} from "@lodestar/utils";
+import {ErrorAborted, sleep} from "@lodestar/utils";
 import {LevelDbController} from "@lodestar/db";
 import {BeaconNode, BeaconDb, createNodeJsLibp2p} from "@lodestar/beacon-node";
 import {createIBeaconConfig} from "@lodestar/config";
@@ -18,10 +18,24 @@ import {IBeaconArgs} from "./options.js";
 import {getBeaconPaths} from "./paths.js";
 import {initBeaconState} from "./initBeaconState.js";
 
+/** My create Peer id test */
+export async function beaconHandler(args: IBeaconArgs & IGlobalArgs): Promise<void> {
+  const {config, beaconPaths} = await beaconHandlerInit(args);
+  const logger = getCliLogger(args, beaconPaths, config);
+  let i = 0;
+  while (true) {
+    for (let j = 0; j < 1000; j++) {
+      await createSecp256k1PeerId();
+    }
+    logger.info("Test createSecp256k1PeerId", {i});
+    i++;
+  }
+}
+
 /**
  * Runs a beacon node.
  */
-export async function beaconHandler(args: IBeaconArgs & IGlobalArgs): Promise<void> {
+export async function beaconHandler2(args: IBeaconArgs & IGlobalArgs): Promise<void> {
   const {config, options, beaconPaths, network, version, commit, peerId} = await beaconHandlerInit(args);
 
   // initialize directories
