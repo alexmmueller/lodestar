@@ -4,7 +4,7 @@ import {createSecp256k1PeerId} from "@libp2p/peer-id-factory";
 import {createKeypairFromPeerId, ENR} from "@chainsafe/discv5";
 import {ErrorAborted, sleep} from "@lodestar/utils";
 import {LevelDbController} from "@lodestar/db";
-import {BeaconNode, BeaconDb, createNodeJsLibp2p} from "@lodestar/beacon-node";
+import {BeaconNode, BeaconDb, createNodeJsLibp2p, RegistryMetricCreator, collectNodeJSMetrics, HttpMetricsServer} from "@lodestar/beacon-node";
 import {createIBeaconConfig} from "@lodestar/config";
 import {ACTIVE_PRESET, PresetName} from "@lodestar/params";
 import {ProcessShutdownCallback} from "@lodestar/validator";
@@ -22,11 +22,27 @@ import {initBeaconState} from "./initBeaconState.js";
 export async function beaconHandler(args: IBeaconArgs & IGlobalArgs): Promise<void> {
   const {config, beaconPaths} = await beaconHandlerInit(args);
   const logger = getCliLogger(args, beaconPaths, config);
+
+  const metricRegister = new RegistryMetricCreator();
+  collectNodeJSMetrics(metricRegister);
+  const defaultMetricsOptions = {
+    enabled: false,
+    port: 8008,
+  };
+  // start metrics http server
+  const metricsServer = new HttpMetricsServer(defaultMetricsOptions, {
+    register: metricRegister,
+    logger: logger.child({module: "metrics"}),
+  });
+  await metricsServer.start();
+  logger.info("Started http metric server");
+
   let i = 0;
   while (true) {
     for (let j = 0; j < 1000; j++) {
       await createSecp256k1PeerId();
     }
+    await sleep(100);
     logger.info("Test createSecp256k1PeerId", {i});
     i++;
   }
