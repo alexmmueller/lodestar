@@ -16,6 +16,7 @@ describe("StateContextCache", function () {
     shuffling: [],
     committees: [],
     committeesPerSlot: 1,
+    dependantRoot: ZERO_HASH,
   };
 
   beforeEach(function () {
