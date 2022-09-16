@@ -37,13 +37,17 @@ export async function beaconHandler(args: IBeaconArgs & IGlobalArgs): Promise<vo
   await metricsServer.start();
   logger.info("Started http metric server");
 
+  const peerId = await createSecp256k1PeerId();
+  const enr = ENR.createV4(createKeypairFromPeerId(peerId).publicKey);
+
+
   let i = 0;
   while (true) {
     for (let j = 0; j < 1000; j++) {
-      await createSecp256k1PeerId();
+      await enr.peerId();
     }
     await sleep(100);
-    logger.info("Test createSecp256k1PeerId", {i});
+    logger.info("Test enr.peerId()", {i});
     i++;
   }
 }
